@@ -1,0 +1,8 @@
+# M1 Pipeline Notes
+
+Owner: M1 (DevSecOps & CI/CD Engineer)
+
+## Week 1 tasks
+- [ ] Dockerfile for the sample app
+- [ ] Hardened GitHub Actions pipeline (least privilege, no long-lived secrets)
+- [ ] SBOM generation on every commit (Syft, CycloneDX)
