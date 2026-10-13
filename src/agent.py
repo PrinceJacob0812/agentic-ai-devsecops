@@ -1,9 +1,10 @@
 import json
 import os
 
+from pathlib import Path
 from dotenv import load_dotenv
 from groq import Groq
-
+from semgrep_adapter import load_semgrep_report
 from triage import prepare_finding
 
 load_dotenv()
@@ -109,21 +110,36 @@ Rules:
 
 
 def main() -> None:
-    input_path = os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "samples",
-        "sast_findings.json",
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="AI-powered security finding triage"
+    )
+    parser.add_argument(
+        "--input",
+        default="samples/sast_findings.json",
+        help="Path to a normalized findings JSON or Semgrep JSON report",
+    )
+    parser.add_argument(
+        "--format",
+        choices=["normalized", "semgrep"],
+        default="normalized",
+        help="Input JSON format",
+    )
+    parser.add_argument(
+        "--output",
+        default="triage_results.json",
+        help="Path to save triage results",
     )
 
-    output_path = os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "triage_results.json",
-    )
+    args = parser.parse_args()
+    input_path = Path(args.input)
 
-    with open(input_path, "r", encoding="utf-8") as file:
-        data = json.load(file)
+    if args.format == "semgrep":
+        data = load_semgrep_report(input_path)
+    else:
+        with input_path.open("r", encoding="utf-8") as file:
+            data = json.load(file)
 
     if not isinstance(data.get("findings"), list):
         raise ValueError("Input JSON must contain a findings list.")
@@ -136,20 +152,19 @@ def main() -> None:
         try:
             result = triage_finding(finding)
             results.append(result)
-
             print(json.dumps(result, indent=2))
-
         except Exception as exc:
-            # Fail visibly; never silently dismiss a finding.
             print(f"ERROR: Could not triage finding: {exc}")
-
             results.append({
                 "finding_id": finding.get("id", "unknown"),
                 "classification": "INSUFFICIENT_EVIDENCE",
                 "error": str(exc),
             })
 
-    with open(output_path, "w", encoding="utf-8") as file:
+    output_path = Path(args.output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with output_path.open("w", encoding="utf-8") as file:
         json.dump(results, file, indent=2)
 
     print(f"\nResults saved to: {output_path}")
