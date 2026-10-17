@@ -36,6 +36,22 @@ jobs:
         run: |
              test -s sbom.cdx.json
              jq -e '.bomFormat == "CycloneDX" and (.components | length > 0)' sbom.cdx.json
+      - name: Scan SBOM for known vulnerabilities (Grype)
+        id: grype
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+        with:
+          sbom: sbom.cdx.json
+          fail-build: false
+      - name: Summarize vulnerability findings
+        env:
+          SARIF: ${{ steps.grype.outputs.sarif }}
+        run: |
+          echo "Vulnerability findings: $(jq '[.runs[].results[]] | length' "$SARIF")"
+      - name: Upload vulnerability report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: grype-report-${{ github.sha }}
+          path: ${{ steps.grype.outputs.sarif }}
  
   publish:
     needs: build-sbom
