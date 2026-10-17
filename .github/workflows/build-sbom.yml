@@ -32,7 +32,11 @@ jobs:
           format: cyclonedx-json
           output-file: sbom.cdx.json
           artifact-name: sbom-${{ github.sha }}.cdx.json
-
+      - name: Validate SBOM
+        run: |
+             test -s sbom.cdx.json
+             jq -e '.bomFormat == "CycloneDX" and (.components | length > 0)' sbom.cdx.json
+ 
   publish:
     needs: build-sbom
     if: github.event_name == 'push'
