@@ -1,0 +1,17 @@
+rules:
+  - id: training-sql-query-string-concat
+    languages:
+      - python
+    severity: ERROR
+    message: >-
+      User-controlled input may be concatenated into a SQL query.
+      Use a parameterized query instead of string concatenation.
+    metadata:
+      category: security
+      cwe: "CWE-89"
+      confidence: HIGH
+      technology:
+        - sqlite
+      training_only: true
+    patterns:
+      - pattern: $CURSOR.execute($QUERY + $INPUT)
