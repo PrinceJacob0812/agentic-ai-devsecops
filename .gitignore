@@ -29,3 +29,6 @@ coverage/
 Thumbs.db
 # Local logs
 *.log
+
+# Generated AI triage results
+/results/
