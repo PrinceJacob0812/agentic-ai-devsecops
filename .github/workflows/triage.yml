@@ -69,10 +69,26 @@ jobs:
         run: |
           mkdir -p sast
           semgrep scan --config .semgrep/rules.yml --json --output sast/semgrep-results.json app/
+      - name: Fill in code snippets hidden by Semgrep
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("sast/semgrep-results.json")
+          data = json.loads(p.read_text(encoding="utf-8"))
+          for r in data.get("results", []):
+              src = Path(r["path"])
+              if src.is_file():
+                  lines = src.read_text(encoding="utf-8").splitlines()
+                  s, e = r["start"]["line"], r["end"]["line"]
+                  r.setdefault("extra", {})["lines"] = "\n".join(lines[s-1:e])
+          p.write_text(json.dumps(data, indent=2), encoding="utf-8")
+          PY
       - name: Run AI triage
         working-directory: agent
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GROQ_MODEL: openai/gpt-oss-120b
         run: python src/agent.py --format semgrep --input ../sast/semgrep-results.json --output ../results/triage_results.json
       - name: Check triage results
         run: |
