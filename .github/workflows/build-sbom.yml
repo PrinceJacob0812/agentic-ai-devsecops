@@ -7,61 +7,21 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: build-sbom-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-sbom:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - name: Build image (not pushed)
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          load: true
-          push: false
-          tags: sample-app:${{ github.sha }}
-      - name: Generate SBOM (CycloneDX, Syft)
-        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
-        with:
-          image: sample-app:${{ github.sha }}
-          format: cyclonedx-json
-          output-file: sbom.cdx.json
-          artifact-name: sbom-${{ github.sha }}.cdx.json
-      - name: Validate SBOM
-        run: |
-             test -s sbom.cdx.json
-             jq -e '.bomFormat == "CycloneDX" and (.components | length > 0)' sbom.cdx.json
-      - name: Scan SBOM for known vulnerabilities (Grype)
-        id: grype
-        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
-        with:
-          sbom: sbom.cdx.json
-          fail-build: false
-      - name: Summarize vulnerability findings
-        env:
-          SARIF: ${{ steps.grype.outputs.sarif }}
-        run: |
-          echo "Vulnerability findings: $(jq '[.runs[].results[]] | length' "$SARIF")"
-      - name: Upload vulnerability report
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: grype-report-${{ github.sha }}
-          path: ${{ steps.grype.outputs.sarif }}
- 
-  publish:
-    needs: build-sbom
-    if: github.event_name == 'push'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: write
       id-token: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+      image: ${{ steps.meta.outputs.image }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -73,10 +33,42 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Set lowercase image name
-        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}/app" >> "$GITHUB_ENV"
-      - name: Build and push
+        id: meta
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/app"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+      - name: Build and push image (once)
+        id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           push: true
-          tags: ${{ env.IMAGE }}:${{ github.sha }}
+          tags: ${{ steps.meta.outputs.image }}:${{ github.sha }}
+      - name: Generate SBOM from the pushed image digest
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: ${{ steps.meta.outputs.image }}@${{ steps.build.outputs.digest }}
+          format: cyclonedx-json
+          output-file: sbom.cdx.json
+          artifact-name: sbom-${{ github.sha }}.cdx.json
+      - name: Validate SBOM
+        run: |
+          test -s sbom.cdx.json
+          jq -e '.bomFormat == "CycloneDX" and (.components | length > 0)' sbom.cdx.json
+      - name: Scan SBOM for known vulnerabilities (Grype)
+        id: grype
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+        with:
+          sbom: sbom.cdx.json
+          fail-build: false
+      - name: Summarize vulnerability findings
+        env:
+          SARIF: ${{ steps.grype.outputs.sarif }}
+        run: |
+          echo "Image digest: ${{ steps.build.outputs.digest }}"
+          echo "Vulnerability findings: $(jq '[.runs[].results[]] | length' "$SARIF")"
+      - name: Upload vulnerability report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: grype-report-${{ github.sha }}
+          path: ${{ steps.grype.outputs.sarif }}
