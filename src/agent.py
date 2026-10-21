@@ -1,7 +1,7 @@
 
+import argparse
 import json
 import os
-import argparse
 from pathlib import Path
 from typing import Any
 
@@ -15,13 +15,6 @@ load_dotenv()
 
 API_KEY = os.getenv("GROQ_API_KEY")
 MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
-
-if not API_KEY:
-    raise RuntimeError(
-        "GROQ_API_KEY is missing. Add it to your .env file."
-    )
-
-client = Groq(api_key=API_KEY)
 
 EXPECTED_RESPONSE_FIELDS = {
     "finding_id",
@@ -42,6 +35,19 @@ ALLOWED_CLASSIFICATIONS = {
 ALLOWED_RISKS = {"CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"}
 
 
+def get_groq_client() -> Groq:
+    """Create the Groq client only when live AI inference is needed."""
+
+    api_key = os.getenv("GROQ_API_KEY") or API_KEY
+
+    if not api_key:
+        raise RuntimeError(
+            "GROQ_API_KEY is missing. Add it to your .env file."
+        )
+
+    return Groq(api_key=api_key)
+
+
 def validate_ai_response(result: Any, finding_id: str) -> dict:
     """Validate the complete schema of the AI response."""
 
@@ -53,11 +59,15 @@ def validate_ai_response(result: Any, finding_id: str) -> dict:
     if actual_fields != EXPECTED_RESPONSE_FIELDS:
         missing = EXPECTED_RESPONSE_FIELDS - actual_fields
         unexpected = actual_fields - EXPECTED_RESPONSE_FIELDS
+
         raise ValueError(
             f"Invalid AI response schema. "
             f"Missing fields: {sorted(missing)}; "
             f"unexpected fields: {sorted(unexpected)}"
         )
+
+    if not isinstance(result["finding_id"], str):
+        raise ValueError("AI returned an invalid finding ID.")
 
     if result["finding_id"] != finding_id:
         raise ValueError("AI returned an incorrect finding ID.")
@@ -69,6 +79,7 @@ def validate_ai_response(result: Any, finding_id: str) -> dict:
         raise ValueError("AI returned an invalid risk level.")
 
     confidence = result["confidence"]
+
     if (
         not isinstance(confidence, int)
         or isinstance(confidence, bool)
@@ -77,6 +88,7 @@ def validate_ai_response(result: Any, finding_id: str) -> dict:
         raise ValueError("AI returned an invalid confidence score.")
 
     evidence = result["evidence"]
+
     if not isinstance(evidence, list):
         raise ValueError("AI evidence must be a list.")
 
@@ -126,7 +138,7 @@ Rules:
 - Return JSON only, with no additional fields.
 """
 
-    response = client.chat.completions.create(
+    response = get_groq_client().chat.completions.create(
         model=MODEL,
         temperature=0,
         max_tokens=800,
@@ -146,6 +158,7 @@ Rules:
         raise ValueError("The AI returned an empty response.")
 
     result = json.loads(content)
+
     return validate_ai_response(result, safe_finding["id"])
 
 
@@ -159,7 +172,9 @@ def error_result(finding: Any, error: Exception) -> dict:
     )
 
     return {
-        "finding_id": finding_id if isinstance(finding_id, str) else "unknown",
+        "finding_id": (
+            finding_id if isinstance(finding_id, str) else "unknown"
+        ),
         "classification": "INSUFFICIENT_EVIDENCE",
         "risk_level": "INFO",
         "confidence": 0,
@@ -174,17 +189,20 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="AI-powered security finding triage"
     )
+
     parser.add_argument(
         "--input",
         default="samples/sast_findings.json",
         help="Path to normalized findings JSON or a Semgrep JSON report",
     )
+
     parser.add_argument(
         "--format",
         choices=["normalized", "semgrep"],
         default="normalized",
         help="Input JSON format",
     )
+
     parser.add_argument(
         "--output",
         default="triage_results.json",
@@ -208,17 +226,18 @@ def main() -> None:
     results = []
 
     for index, finding in enumerate(data["findings"], start=1):
-        # Never access finding fields until its type is checked.
         display_id = (
             finding.get("id", "unknown")
             if isinstance(finding, dict)
             else "unknown"
         )
+
         print(f"\nAnalyzing finding {index}: {display_id}")
 
         try:
             result = triage_finding(finding)
             print(json.dumps(result, indent=2))
+
         except Exception as exc:
             print(f"ERROR: Could not triage finding: {exc}")
             result = error_result(finding, exc)
