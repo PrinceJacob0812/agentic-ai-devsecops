@@ -27,3 +27,6 @@ Owner: M1 (DevSecOps & CI/CD Engineer)
 - Grype scans the SBOM on every run (report-only, fail-build: false). Findings of severity medium or higher were reported on the first run; the blocking policy is left to M3's OPA rule.
 - Each push adds a new image tag; old tags may need a cleanup rule later.
 - Trade-off: the single job holds packages: write and id-token: write for all steps; a separate signing job would keep write access narrower.
+## Week 2 status 
+- Done: SBOM validation, Grype scan, digest-based SBOM, SAST triage stage (verified).
+- Pending: signing job (waiting for M3's working signing file), Week 2 PR review, AGENT_REF switch (waiting for PR #2).
