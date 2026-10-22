@@ -13,3 +13,20 @@ Owner: M1 (DevSecOps & CI/CD Engineer)
 - All 5 actions pinned to full commit SHAs (checkout v7.0.1, setup-buildx v4.4.1, build-push v7.4.0, login v4.6.0, sbom-action v0.24.3).
 - Dependabot enabled for GitHub Actions (weekly).
 - Registry auth uses the per-run GITHUB_TOKEN, no stored credentials.
+## Week 2
+- SBOM validated in CI (CycloneDX format, non-empty components).
+- Grype scans the SBOM on every run; the report is stored as an artifact (report-only for now; blocking is handled by M3's OPA policy).
+## Triage stage (Week 2)
+- triage.yml runs Semgrep on app/ and then Suravi's agent (src/agent.py) on the JSON report. The Groq key is an Actions secret passed to that one step only; the agent-tests job uses a fake key.
+- Result: SEMGR-0001 (SQL concatenation, app.py) classified TRUE_POSITIVE, risk HIGH, confidence 80, with the real code line as evidence and a parameterized-query fix. The AI suggested %s placeholders; the app uses SQLite, which needs ? (shows why AI output needs human review).
+- Finding 1: the agent's default model (llama-3.3-70b-versatile) was retired by Groq on 16 Aug 2026, so every AI call returned model_not_found while the agent still exited successfully. The result check in the pipeline caught it; fixed by setting GROQ_MODEL.
+- Finding 2: Semgrep without a login replaces the code snippet with "requires login". A workflow step reads the real line from app/ before the agent runs.
+- Known gaps: agent dependencies are installed by name (no requirements.txt yet); the agent runs from feature/ai-security-triage until PR #2 is merged, then AGENT_REF changes to main; only the flagged snippet is sent to the model, not surrounding code.
+## Digest-based SBOM (Week 2)
+- build-sbom.yml builds and pushes the image once; the SBOM is generated from image@digest, so it describes exactly the pushed image. The job exposes digest and image as outputs for the signing job (M3).
+- Grype scans the SBOM on every run (report-only, fail-build: false). Findings of severity medium or higher were reported on the first run; the blocking policy is left to M3's OPA rule.
+- Each push adds a new image tag; old tags may need a cleanup rule later.
+- Trade-off: the single job holds packages: write and id-token: write for all steps; a separate signing job would keep write access narrower.
+## Week 2 status 
+- Done: SBOM validation, Grype scan, digest-based SBOM, SAST triage stage (verified).
+- Pending: signing job (waiting for M3's working signing file), Week 2 PR review, AGENT_REF switch (waiting for PR #2).
