@@ -30,3 +30,7 @@ Owner: M1 (DevSecOps & CI/CD Engineer)
 ## Week 2 status 
 - Done: SBOM validation, Grype scan, digest-based SBOM, SAST triage stage (verified).
 - Pending: signing job (waiting for M3's working signing file), Week 2 PR review, AGENT_REF switch (waiting for PR #2).
+## Week 2 summary (Oct 23)
+- Done and merged: SBOM validation, Grype scan, image built and pushed once with the SBOM generated from its digest (PR #7); triage import fix (PR #8); keyless Cosign signing, SBOM attestation and verification (PR #9). Run #30 shows the signing, attestation and verify steps green; triage #5 is green on main.
+- Run #30 was marked cancelled by the concurrency group when run #31 started ("higher priority waiting request"), but its log shows signing and verification finished first. Possible hardening: a separate concurrency group per run on main.
+- Pending on others: deploy gate (M3: scripts/gate.sh and OPA policy); switching AGENT_REF to main after M2's PR #2 is merged.
