@@ -11,4 +11,6 @@ COPY --from=build /install /usr/local
 COPY --chown=appuser:appuser app/ .
 USER 10001
 EXPOSE 5000
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=2)"]
 CMD ["python", "app.py"]
