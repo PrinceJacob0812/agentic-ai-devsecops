@@ -1,0 +1,103 @@
+name: dast
+
+on:
+  push:
+    paths:
+      - ".github/workflows/dast.yml"
+      - "dast/**"
+      - "generated_tests/**"
+      - "app/**"
+      - "Dockerfile"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dast-${{ github.ref == 'refs/heads/main' && github.run_id || github.ref }}
+  cancel-in-progress: true
+
+env:
+  FAIL_ON_FINDING: "false"
+
+jobs:
+  dast:
+    name: Sandboxed DAST
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build app image (local only, not pushed)
+        run: docker build -t dast-app:test .
+      - name: Start sandbox (no network, no capabilities)
+        run: |
+          docker run -d --name dast-app \
+            --network none --cap-drop ALL --security-opt no-new-privileges \
+            --pids-limit 100 --memory 256m --cpus 1 \
+            dast-app:test
+          for i in $(seq 1 30); do
+            if docker exec dast-app python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=2)" 2>/dev/null; then
+              echo "App is up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "App did not start"
+          docker logs dast-app
+          exit 1
+      - name: Run DAST tests inside the sandbox
+        run: |
+          mkdir -p results
+          echo '[]' > results/dast-results.json
+          docker exec dast-app mkdir -p /tmp/dast-tests/baseline /tmp/dast-tests/generated
+          findings=0
+          errors=0
+          total=0
+          {
+            echo "## DAST results"
+            echo ""
+            echo "| Test | Result | Detail |"
+            echo "| --- | --- | --- |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          for f in dast/baseline/*.py generated_tests/*.py; do
+            [ -f "$f" ] || continue
+            case "$f" in
+              dast/baseline/*) dest="/tmp/dast-tests/baseline/$(basename "$f")" ;;
+              *) dest="/tmp/dast-tests/generated/$(basename "$f")" ;;
+            esac
+            docker cp "$f" "dast-app:$dest"
+            out=$(docker exec -e TARGET_URL=http://127.0.0.1:5000 dast-app timeout 30 python "$dest" 2>&1) && code=0 || code=$?
+            total=$((total + 1))
+            case "$code" in
+              0) result="PASS" ;;
+              1) result="FINDING"; findings=$((findings + 1)) ;;
+              *) result="ERROR"; errors=$((errors + 1)) ;;
+            esac
+            echo "[$result] $f (exit $code)"
+            echo "$out"
+            detail=$(echo "$out" | head -n 1 | tr '|' '/')
+            echo "| $f | $result | $detail |" >> "$GITHUB_STEP_SUMMARY"
+            jq --arg test "$f" --arg result "$result" --argjson code "$code" --arg output "$out" \
+              '. + [{test: $test, result: $result, exit_code: $code, output: $output}]' \
+              results/dast-results.json > results/tmp.json && mv results/tmp.json results/dast-results.json
+          done
+          echo "Tests: $total, findings: $findings, errors: $errors"
+          if [ "$total" -eq 0 ]; then echo "No tests found"; exit 1; fi
+          if [ "$errors" -gt 0 ]; then echo "Some tests failed to run"; exit 1; fi
+          if [ "$FAIL_ON_FINDING" = "true" ] && [ "$findings" -gt 0 ]; then echo "Findings present"; exit 1; fi
+      - name: Show app logs and stop the sandbox
+        if: always()
+        run: |
+          docker logs dast-app || true
+          docker rm -f dast-app || true
+      - name: Upload DAST results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dast-results-${{ github.sha }}
+          path: results/
+          if-no-files-found: warn
+          retention-days: 14
