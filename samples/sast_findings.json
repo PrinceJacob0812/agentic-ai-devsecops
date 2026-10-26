@@ -1,0 +1,24 @@
+{
+  "findings": [
+    {
+      "id": "TEST-001",
+      "rule_id": "python.lang.security.audit.exec-detected",
+      "severity": "HIGH",
+      "file": "app.py",
+      "line": 24,
+      "message": "Use of exec() may allow arbitrary code execution.",
+      "code": "exec(user_input)",
+      "expected_label": "TRUE_POSITIVE"
+    },
+    {
+      "id": "TEST-002",
+      "rule_id": "python.lang.security.audit.hardcoded-password",
+      "severity": "MEDIUM",
+      "file": "config.py",
+      "line": 10,
+      "message": "Possible hardcoded password.",
+      "code": "password = os.environ.get('APP_PASSWORD')",
+      "expected_label": "FALSE_POSITIVE"
+    }
+  ]
+}
