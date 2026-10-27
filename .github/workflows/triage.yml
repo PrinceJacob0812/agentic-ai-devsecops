@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  AGENT_REF: feature/ai-security-triage
+  AGENT_REF: main
 
 jobs:
   agent-tests:
