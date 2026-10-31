@@ -30,3 +30,29 @@ Owner: M1 (DevSecOps & CI/CD Engineer)
 ## Week 2 status 
 - Done: SBOM validation, Grype scan, digest-based SBOM, SAST triage stage (verified).
 - Pending: signing job (waiting for M3's working signing file), Week 2 PR review, AGENT_REF switch (waiting for PR #2).
+
+## Week 3 notes
+
+### Dependabot updates reviewed and merged
+- docker/login-action 4.6.0 to 4.7.0 (PR #14): one-line change, commit ID checked against the v4.7.0 tag with git ls-remote.
+- actions/setup-python 5 to 7 (PR #16): commit ID checked against the v7.1.0 tag. The same PR changes M2's m2-tests.yml, which uses a version tag and not a commit ID.
+- sigstore/cosign-installer 3.10.1 to 4.1.2 (PR #15): this moves Cosign from version 2 to 3. Before merging, I checked that Dependabot's run for this change had sign, attest and verify all green and that the signed-sbom artifact was uploaded. The run on main after the merge was green.
+
+### Grype findings with a high numeric score
+- Three findings have a security-severity score of 9.0 or higher: CVE-2005-2541 in tar (10.0), CVE-2019-1010022 in libc6 and libc-bin (9.8).
+- All three are packages of the Debian base image. Grype labels all three low (level: note in the SARIF file).
+- Decision agreed with M3 for the OPA deploy gate: block on Grype's Critical label, show a score of 9.0 or higher as a warning, and keep a High threshold configurable.
+- A score-only rule would deny our own image on every build.
+- The SARIF report mostly carries the numeric score, so a second Grype scan saves a JSON report (artifact grype-json-<sha>) that has the severity labels.
+
+### Pull requests opened in Week 3
+- Docker base image pinned by digest, HEALTHCHECK and Python environment settings (merged).
+- Docker layer caching with cache-from and cache-to type=gha (PR #19, waiting for review).
+- Dependabot entry for the docker ecosystem (waiting for review).
+- Grype JSON report with severity labels (waiting for review).
+
+### Repository hygiene
+- Two unused branches created by GitHub's Revert button exist: revert-3-M1/week1-cicd-pipeline and revert-9-M1-cosign-signing. No revert PR was opened, and main still has the pipeline and signing. A mistaken merge would remove a security control, so unused revert branches should be deleted once M3 confirms.
+
+### Review delays
+- Several of my PRs were waiting for review, and M3's gate (PR #13) had no ALLOWED and DENIED results yet. For the audit report this is a process finding: a second reviewer should be named for when the first is not available.
