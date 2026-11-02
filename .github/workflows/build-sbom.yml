@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: build-sbom-${{ github.ref }}
+  group: build-sbom-${{ github.ref == 'refs/heads/main' && github.run_id || github.ref }}
   cancel-in-progress: true
 
 jobs:
