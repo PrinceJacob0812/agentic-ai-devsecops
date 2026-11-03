@@ -25,3 +25,5 @@ coverage/
 Thumbs.db
 # Local logs
 *.log
+grype-report.json
+ci-artifacts/
