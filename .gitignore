@@ -27,3 +27,5 @@ Thumbs.db
 *.log
 grype-report.json
 ci-artifacts/
+ci-artifacts-head/
+ci-artifacts-main/
