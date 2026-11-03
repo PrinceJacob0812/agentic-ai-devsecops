@@ -1,3 +1,7 @@
+.env
+.venv/
+__pycache__/
+.pytest_cache/
 # Environment and secrets
 .env
 .env.*
@@ -25,7 +29,13 @@ coverage/
 Thumbs.db
 # Local logs
 *.log
+<<<<<<< HEAD
 grype-report.json
 ci-artifacts/
 ci-artifacts-head/
 ci-artifacts-main/
+=======
+
+# Generated AI triage results
+/results/
+>>>>>>> origin/main
