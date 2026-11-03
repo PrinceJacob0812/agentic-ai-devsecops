@@ -29,6 +29,10 @@ coverage/
 Thumbs.db
 # Local logs
 *.log
+grype-report.json
+ci-artifacts/
+ci-artifacts-head/
+ci-artifacts-main/
 
 # Generated AI triage results
 /results/
