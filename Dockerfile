@@ -1,9 +1,9 @@
-FROM python:3.12-slim AS build
+FROM python:3.12.16-slim AS build
 WORKDIR /app
 COPY app/requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-FROM python:3.12-slim
+FROM python:3.12.16-slim
 RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin appuser
 WORKDIR /app
 RUN chown appuser:appuser /app
