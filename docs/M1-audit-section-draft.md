@@ -1,4 +1,4 @@
-﻿# Audit report section: SBOM and pipeline (M1)
+git add docs/M1-audit-section-draft.md# Audit report section: SBOM and pipeline (M1)
 
 Status: draft. Parts 1 to 6 written. Part 7 waits for the red team exercise. Parts 8 and 9 are still to write.
 
@@ -32,8 +32,25 @@ To write after the exercise: what was changed, what the SBOM showed, what Grype 
 
 ## 8. Findings and fixes
 
-To write.
+Eight findings came out of building and running the pipeline.
+
+1. Unpinned dependency range. app/requirements.txt allowed any Flask version in a range, so builds were not reproducible. The SBOM showed the versions that were actually installed, and M4 pinned exact versions.
+2. Hidden code snippets. Semgrep replaces the code snippet with a login message when it runs without an account, so the AI agent saw no code. A workflow step now reads the real line from app/ before the agent runs.
+3. Silent AI failure. Groq retired the agent's default model, and the agent still exited with success while every AI call failed. A result check now fails the run when the output is empty or every finding has an error, and the model is set explicitly.
+4. Triage failure on main. After the first triage merge, the agent failed with a missing-module error. Starting it as python -m src.agent fixed the import path.
+5. Cancelled run. A run on main was marked cancelled by a newer run after its signing steps had finished. The concurrency group on main now includes the run ID, and two later runs started 20 seconds apart both completed.
+6. Score versus label. Three findings (CVE-2005-2541 in tar, CVE-2019-1010022 in libc6 and libc-bin) have numeric scores of 10.0 and 9.8 but Grype labels them low. A score-only gate rule would deny every image built on this base, so the agreed rule blocks on the Critical label and shows a score of 9.0 or higher as a warning.
+7. New Critical CVE in the pinned base image. A new finding, CVE-2026-115557 in Python 3.12.15, appeared after the digest was pinned. A refresh to 3.12.16 cleared it on the test branch (Critical 1 to 0). At the time of writing the refresh (PR #24) is waiting to be merged.
+8. Major Python bump proposed. Dependabot proposed moving the base image to Python 3.15. It was not merged, because the build and scan do not test the application on a new Python line.
 
 ## 9. Known limitations
 
-To write.
+- Permissions. One job holds both packages: write and id-token: write. A separate signing job would narrow this.
+- What a signature proves. A valid signature shows who built the image, not that its contents are safe.
+- Scanning limits. Grype scans the SBOM, so findings are only as complete as the SBOM, and only known CVEs are detected. A malicious package with no published CVE would pass the scan.
+- Gate coverage. Grype findings do not fail the build. Blocking is the deploy gate (M3), which blocks only on the Critical label, so High and Medium findings pass. The base image has 57 High findings. At the time of writing the gate was still in review.
+- DAST. The sandbox tests a local rebuild, not the pushed and signed image, and findings do not fail the run because the sample app is intentionally vulnerable.
+- External AI. Flagged code snippets are sent to an external AI service, which is acceptable for a training app and not for real code.
+- Public log. Sigstore's public log records the signing identity, even for a private repository.
+- Manual digest refresh. Pinning the base image by digest gives repeatable builds, but new fixes only arrive when someone refreshes the digest.
+- Measurement. The caching result comes from one pair of runs.
