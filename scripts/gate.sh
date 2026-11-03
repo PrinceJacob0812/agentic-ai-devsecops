@@ -15,13 +15,8 @@ for tool in cosign opa jq; do
     fi
 done
 
-if [[ ! -f "$POLICY_FILE" ]]; then
-    echo "ERROR: Policy file not found: $POLICY_FILE" >&2
-    exit 1
-fi
-
-if [[ ! -f "$GRYPE_JSON" ]]; then
-    echo "ERROR: Grype report not found: $GRYPE_JSON" >&2
+if [[ ! -f "$POLICY_FILE" || ! -f "$GRYPE_JSON" ]]; then
+    echo "ERROR: Policy or Grype report file not found." >&2
     exit 1
 fi
 
@@ -34,26 +29,43 @@ TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
 echo "[1/4] Verifying image signature..."
-cosign verify \
+if ! cosign verify \
     --certificate-identity "$IDENTITY" \
     --certificate-oidc-issuer "$ISSUER" \
-    "$IMAGE_REF" > "$TMP_DIR/signature.json"
+    "$IMAGE_REF" > "$TMP_DIR/signature.json" 2>"$TMP_DIR/signature.err"; then
+    echo "DENIED: Image signature verification failed." >&2
+    cat "$TMP_DIR/signature.err" >&2
+    exit 1
+fi
 
 echo "[2/4] Verifying signed CycloneDX SBOM attestation..."
-cosign verify-attestation \
+if ! cosign verify-attestation \
     --type cyclonedx \
     --certificate-identity "$IDENTITY" \
     --certificate-oidc-issuer "$ISSUER" \
-    "$IMAGE_REF" > "$TMP_DIR/attestation.json"
+    "$IMAGE_REF" > "$TMP_DIR/attestation.json" 2>"$TMP_DIR/attestation.err"; then
+    echo "DENIED: SBOM attestation verification failed." >&2
+    cat "$TMP_DIR/attestation.err" >&2
+    exit 1
+fi
 
-test -s "$TMP_DIR/attestation.json"
+if [[ ! -s "$TMP_DIR/attestation.json" ]]; then
+    echo "DENIED: SBOM attestation is empty." >&2
+    exit 1
+fi
 
 echo "[3/4] Checking Grype vulnerability report..."
+
 CRITICAL_COUNT="$(jq \
     '[.matches[]? | select(.vulnerability.severity == "Critical")] | length' \
     "$GRYPE_JSON")"
 
+HIGH_COUNT="$(jq \
+    '[.matches[]? | select(.vulnerability.severity == "High")] | length' \
+    "$GRYPE_JSON")"
+
 echo "Critical vulnerabilities found: $CRITICAL_COUNT"
+echo "High vulnerabilities found: $HIGH_COUNT (warn-only)"
 
 jq -n \
     --arg image_ref "$IMAGE_REF" \
@@ -66,10 +78,16 @@ jq -n \
     }' > "$TMP_DIR/input.json"
 
 echo "[4/4] Evaluating OPA deployment policy..."
-if [[ "$(opa eval --format raw \
+
+if ! OPA_RESULT="$(opa eval --format raw \
     --data "$POLICY_FILE" \
     --input "$TMP_DIR/input.json" \
-    'data.deployment.allow')" != "true" ]]; then
+    'data.deployment.allow')"; then
+    echo "DENIED: OPA policy evaluation failed." >&2
+    exit 1
+fi
+
+if [[ "$OPA_RESULT" != "true" ]]; then
     echo "DENIED: Deployment policy rejected the image." >&2
     exit 1
 fi
