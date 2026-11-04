@@ -119,3 +119,15 @@ jobs:
           path: |
             sbom.cdx.json
             signed-sbom-attestation.json
+      - name: Install OPA (pinned)
+        uses: open-policy-agent/setup-opa@34a30e8a924d1b03ce2cf7abe97250bbb1f332b5 # v2.2.0
+        with:
+          version: 1.8.0
+      - name: Run policy tests
+        run: opa test policies/ -v
+      - name: Deployment gate (OPA)
+        env:
+          IMAGE_REF: ${{ steps.meta.outputs.image }}@${{ steps.build.outputs.digest }}
+          IDENTITY: https://github.com/${{ github.repository }}/.github/workflows/build-sbom.yml@${{ github.ref }}
+          GRYPE_JSON: ${{ steps.grype_json.outputs.json }}
+        run: bash scripts/gate.sh
