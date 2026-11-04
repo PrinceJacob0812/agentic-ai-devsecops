@@ -12,7 +12,7 @@ Syft produces a CycloneDX JSON SBOM. A jq check fails the build if the file is m
 
 ## 3. Vulnerability scanning
 
-Grype scans the SBOM in report-only mode, so findings produce a warning and do not fail the build. Two reports are saved: a SARIF report with numeric scores and a JSON report with severity labels. On one run on main the labels were Critical 1, High 57, Medium 59, Low 12 and Negligible 47. The Critical finding was CVE-2026-115557 in Python 3.12.15, the interpreter in the base image, with a fix in 3.12.16. Refreshing the base image digest cleared it (Critical 0, Medium 58). The deploy gate agreed with M3 blocks on the Critical label and shows a score of 9.0 or higher as a warning.
+Grype scans the SBOM in report-only mode, so findings produce a warning and do not fail the build. Two reports are saved: a SARIF report with numeric scores and a JSON report with severity labels. On one run on main the labels were Critical 1, High 57, Medium 59, Low 12 and Negligible 47. The Critical finding was CVE-2026-115557 in Python 3.12.15, the interpreter in the base image, with a fix in 3.12.16. Refreshing the base image digest cleared it (Critical 0, Medium 58). The fix reached main through the deploy gate PR (#13), which pins python:3.12.16-slim by digest, so my separate refresh PR (#24) became redundant. The deploy gate agreed with M3 blocks on the Critical label and shows a score of 9.0 or higher as a warning.
 
 ## 4. Signing and verification
 
@@ -24,7 +24,7 @@ The workflow token is read-only by default, and the build job adds only packages
 
 ## 6. Pipeline fixes
 
-Three changes improved the pipeline. First, Docker layer caching (cache-from and cache-to with type=gha). In one measured pair of runs, the build step dropped from 21 s to 6 s and the total from 2m 50s to 2m 27s, with several layers marked as cached. The total gain is small because most of a run goes to other steps, such as the Grype scan, which took 1m 29s in an older run. Second, a second Grype scan saves a JSON report with severity labels, because the SARIF report mostly carries numeric scores. This lets the deploy gate block on the label. Third, a concurrency fix. In Week 2, run #30 on main was marked cancelled when run #31 started, although every step, including signing and verification, had completed. The image is pushed before it is signed, so a cancel in between could leave an unsigned image. The concurrency group on main now includes the run ID, so no run on main is cancelled. After the change, two manual runs started about 20 seconds apart both completed green. Runs on other branches still cancel older runs to save time.
+Four changes improved the pipeline. First, Docker layer caching (cache-from and cache-to with type=gha). In one measured pair of runs, the build step dropped from 21 s to 6 s and the total from 2m 50s to 2m 27s, with several layers marked as cached. The total gain is small because most of a run goes to other steps, such as the Grype scan, which took 1m 29s in an older run. Second, a second Grype scan saves a JSON report with severity labels, because the SARIF report mostly carries numeric scores. This lets the deploy gate block on the label. Third, a concurrency fix. In Week 2, run #30 on main was marked cancelled when run #31 started, although every step, including signing and verification, had completed. The image is pushed before it is signed, so a cancel in between could leave an unsigned image. The concurrency group on main now includes the run ID, so no run on main is cancelled. After the change, two manual runs started about 20 seconds apart both completed green. Runs on other branches still cancel older runs to save time. Fourth, the OPA deployment gate (scripts/gate.sh, from PR #13) was wired into the pipeline after the signed SBOM upload. It installs a pinned OPA, runs the policy tests, verifies the signature and attestation again, counts Critical findings in the Grype JSON, and denies the image when the count is above zero. High findings only warn. On the branch run it printed ALLOWED with Critical 0 and High 60. The wiring was in review at the time of writing.
 
 ## 7. Red team exercise
 
@@ -40,7 +40,7 @@ Eight findings came out of building and running the pipeline.
 4. Triage failure on main. After the first triage merge, the agent failed with a missing-module error. Starting it as python -m src.agent fixed the import path.
 5. Cancelled run. A run on main was marked cancelled by a newer run after its signing steps had finished. The concurrency group on main now includes the run ID, and two later runs started 20 seconds apart both completed.
 6. Score versus label. Three findings (CVE-2005-2541 in tar, CVE-2019-1010022 in libc6 and libc-bin) have numeric scores of 10.0 and 9.8 but Grype labels them low. A score-only gate rule would deny every image built on this base, so the agreed rule blocks on the Critical label and shows a score of 9.0 or higher as a warning.
-7. New Critical CVE in the pinned base image. A new finding, CVE-2026-115557 in Python 3.12.15, appeared after the digest was pinned. A refresh to 3.12.16 cleared it on the test branch (Critical 1 to 0). At the time of writing the refresh (PR #24) is waiting to be merged.
+7. New Critical CVE in the pinned base image. A new finding, CVE-2026-115557 in Python 3.12.15, appeared after the digest was pinned. A refresh to 3.12.16 cleared it on the test branch (Critical 1 to 0). The same fix reached main through the gate PR (#13), which pins python:3.12.16-slim by digest, and PR #24 became redundant.
 8. Major Python bump proposed. Dependabot proposed moving the base image to Python 3.15. It was not merged, because the build and scan do not test the application on a new Python line.
 
 ## 9. Known limitations
@@ -48,9 +48,11 @@ Eight findings came out of building and running the pipeline.
 - Permissions. One job holds both packages: write and id-token: write. A separate signing job would narrow this.
 - What a signature proves. A valid signature shows who built the image, not that its contents are safe.
 - Scanning limits. Grype scans the SBOM, so findings are only as complete as the SBOM, and only known CVEs are detected. A malicious package with no published CVE would pass the scan.
-- Gate coverage. Grype findings do not fail the build. Blocking is the deploy gate (M3), which blocks only on the Critical label, so High and Medium findings pass. The base image has 57 High findings. At the time of writing the gate was still in review.
+- Gate coverage. Grype findings do not fail the build. Blocking is the deploy gate (M3), which blocks only on the Critical label, so High and Medium findings pass. The base image has 57 High findings. The gate is merged (PR #13), and wiring it into build-sbom was in review at the time of writing.
 - DAST. The sandbox tests a local rebuild, not the pushed and signed image, and findings do not fail the run because the sample app is intentionally vulnerable.
 - External AI. Flagged code snippets are sent to an external AI service, which is acceptable for a training app and not for real code.
 - Public log. Sigstore's public log records the signing identity, even for a private repository.
 - Manual digest refresh. Pinning the base image by digest gives repeatable builds, but new fixes only arrive when someone refreshes the digest.
 - Measurement. The caching result comes from one pair of runs.
+- Gate input. gate.sh trusts the Grype JSON file it is given. Nothing ties that file to the image digest, so a report from a clean image could be passed with a vulnerable one.
+- Gate independence. The gate runs in the same job that built and signed the image, so it is not an independent check at deploy time.
