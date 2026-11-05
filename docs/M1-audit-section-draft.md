@@ -28,7 +28,27 @@ Four changes improved the pipeline. First, Docker layer caching (cache-from and 
 
 ## 7. Red team exercise
 
-To write after the exercise: what was changed, what the SBOM showed, what Grype found, what the signature proved, and what the gate decided.
+Scenario (led by M4). On a separate test branch created from main, app/requirements.txt gets one extra dependency, urllib3 pinned to 1.26.3. That version is affected by CVE-2021-28363 (fixed in 1.26.4), which is rated Medium. The image is built and scanned by the pipeline, the evidence is collected, and the safe version is restored immediately afterwards.
+
+Evidence recorded for each build (to fill in after the run):
+
+| Evidence | Clean build | urllib3 1.26.3 build |
+| --- | --- | --- |
+| Run link | TO FILL | TO FILL |
+| Image digest | TO FILL | TO FILL |
+| SBOM components | TO FILL | TO FILL |
+| Difference between the two SBOMs | none | TO FILL (expected: urllib3 added) |
+| Grype severity counts | TO FILL | TO FILL |
+| Does Grype report CVE-2021-28363? | no | TO FILL |
+| Signature and attestation verified | TO FILL | TO FILL |
+| Gate decision (OPA) | TO FILL | TO FILL |
+
+What it shows (to write after the run):
+- Whether the SBOM recorded the injected package.
+- Whether Grype reported the CVE and at which severity.
+- Whether the signature stayed valid, and what that proves (who built the image, not that its contents are safe).
+- Whether the gate allowed or denied the image, and why. The gate blocks on the Critical label only, so a Medium finding does not block it.
+- What the exercise suggests for the pipeline.
 
 ## 8. Findings and fixes
 
