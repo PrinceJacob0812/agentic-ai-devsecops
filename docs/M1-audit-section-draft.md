@@ -28,27 +28,33 @@ Four changes improved the pipeline. First, Docker layer caching (cache-from and 
 
 ## 7. Red team exercise
 
-Scenario (led by M4). On a separate test branch created from main, app/requirements.txt gets one extra dependency, urllib3 pinned to 1.26.3. That version is affected by CVE-2021-28363 (fixed in 1.26.4), which is rated Medium. The image is built and scanned by the pipeline, the evidence is collected, and the safe version is restored immediately afterwards.
+Scenario (led by M4). After the deployment gate was wired into the pipeline (PR #36), M4 created the branch M4-redteam-urllib3-medium from main and added one dependency to app/requirements.txt: urllib3 pinned to 1.26.3. That version is affected by CVE-2021-28363 (fixed in 1.26.4), which is rated Medium. The pipeline built the image (build-sbom run #92), and the clean build for comparison is run #87 on main, which is the same code before the change (commit dd1b991). An earlier run on the branch (#91) was cancelled when #92 started, because runs on a branch cancel older runs.
 
-Evidence recorded for each build (to fill in after the run):
-
-| Evidence | Clean build | urllib3 1.26.3 build |
+| Evidence | Clean build (run #87, main) | urllib3 1.26.3 build (run #92) |
 | --- | --- | --- |
-| Run link | TO FILL | TO FILL |
-| Image digest | TO FILL | TO FILL |
-| SBOM components | TO FILL | TO FILL |
-| Difference between the two SBOMs | none | TO FILL (expected: urllib3 added) |
-| Grype severity counts | TO FILL | TO FILL |
-| Does Grype report CVE-2021-28363? | no | TO FILL |
-| Signature and attestation verified | TO FILL | TO FILL |
-| Gate decision (OPA) | TO FILL | TO FILL |
+| Image digest | sha256:aea04d34749ebc09240ab255663cbd0748c937656db9802004975cc1e7308ebf | sha256:d4a88391730d0b275ba9614200091bb5bfbd5b904d1ceea0c99b54017ae2377c |
+| Grype findings (total) | 193 | 208 |
+| Critical | 0 | 0 |
+| High | 60 | 70 |
+| Medium | 73 | 78 |
+| Low | 13 | 13 |
+| Negligible | 47 | 47 |
+| Signature and attestation verified | yes | yes |
+| Gate decision (OPA) | ALLOWED | ALLOWED |
+| Difference between the two SBOMs | none | TO FILL |
+| urllib3 findings in the Grype JSON | not present | TO FILL |
 
-What it shows (to write after the run):
-- Whether the SBOM recorded the injected package.
-- Whether Grype reported the CVE and at which severity.
-- Whether the signature stayed valid, and what that proves (who built the image, not that its contents are safe).
-- Whether the gate allowed or denied the image, and why. The gate blocks on the Critical label only, so a Medium finding does not block it.
-- What the exercise suggests for the pipeline.
+What it shows:
+- The pipeline recorded and scanned the injected dependency. Findings rose by 15 (High +10, Medium +5), with no new Critical finding.
+- The signature stayed valid. It proves who built the image, not that its contents are safe.
+- The gate allowed the image, because it blocks only on the Critical label and High findings are warn-only. A vulnerable dependency that added 10 High findings passed.
+- Inside the pipeline, the gate checks the signature against the identity of the same run that signed the image, so an image built on any branch passes. M3's own test showed the stricter check: the same image checked against the main identity was DENIED for a signature identity mismatch.
+
+What it suggests (not tested):
+- Compare each build with the clean baseline and block newly added High findings. A plain block on High would not work, because the clean image already has 60 High findings from the base image.
+- Enforce the main identity at deployment time, not only inside the build.
+
+Note: M4 restored the safe version after the test (to confirm with M4).
 
 ## 8. Findings and fixes
 
