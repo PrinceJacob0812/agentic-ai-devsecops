@@ -41,7 +41,7 @@ Scenario (led by M4). After the deployment gate was wired into the pipeline (PR 
 | Negligible | 47 | 47 |
 | Signature and attestation verified | yes | yes |
 | Gate decision (OPA) | ALLOWED | ALLOWED |
-| Difference between the two SBOMs | none | TO FILL |
+| Difference between the two SBOMs | 98 packages | 99 packages: the only difference is urllib3@1.26.3, added |
 | urllib3 findings in the Grype JSON | not present | TO FILL |
 
 What it shows:
