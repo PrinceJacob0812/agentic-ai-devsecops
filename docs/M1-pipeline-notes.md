@@ -30,3 +30,4 @@ Owner: M1 (DevSecOps & CI/CD Engineer)
 ## Week 2 status 
 - Done: SBOM validation, Grype scan, digest-based SBOM, SAST triage stage (verified).
 - Pending: signing job (waiting for M3's working signing file), Week 2 PR review, AGENT_REF switch (waiting for PR #2).
+- Handoff to M3 closed. M3 recommends that the dependency update bot uses grype-json-<sha> (reasoned, not verified in the bot's code). The OPA gate runs in build-sbom after the signed SBOM upload and printed ALLOWED on main. OPA stays pinned to 1.8.0 (the five policy tests also pass on M3's 1.22.0).
