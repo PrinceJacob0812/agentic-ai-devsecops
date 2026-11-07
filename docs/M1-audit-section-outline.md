@@ -1,4 +1,6 @@
-﻿# Audit report section: SBOM and pipeline (M1)
+> Older outline, superseded by docs/M1-audit-section-draft.md. The numbering differs: here Part 7 is DAST and Part 8 is the red team exercise, while in the draft Part 7 is the red team exercise and Part 8 is findings and fixes.
+
+# Audit report section: SBOM and pipeline (M1)
 
 Status: outline.
 

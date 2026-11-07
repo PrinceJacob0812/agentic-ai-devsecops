@@ -1,6 +1,6 @@
-git add docs/M1-audit-section-draft.md# Audit report section: SBOM and pipeline (M1)
+# Audit report section: SBOM and pipeline (M1)
 
-Status: draft. Parts 1 to 6 written. Part 7 waits for the red team exercise. Parts 8 and 9 are still to write.
+Status: complete draft. Parts 1 to 9 are written, including the red team results in part 7.
 
 ## 1. What the pipeline does
 
