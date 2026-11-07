@@ -42,19 +42,19 @@ Scenario (led by M4). After the deployment gate was wired into the pipeline (PR 
 | Signature and attestation verified | yes | yes |
 | Gate decision (OPA) | ALLOWED | ALLOWED |
 | Difference between the two SBOMs | 98 packages | 99 packages: the only difference is urllib3@1.26.3, added |
-| urllib3 findings in the Grype JSON | not present | TO FILL |
+| urllib3 findings in the Grype JSON | not present | 12 findings: 8 High and 4 Medium, with fixed versions from 1.26.4 to 2.8.0. The Medium finding fixed in 1.26.4 (GHSA-5phf-pp7p-vc2r) matches the fixed version of CVE-2021-28363. |
 
 What it shows:
-- The pipeline recorded and scanned the injected dependency. Findings rose by 15 (High +10, Medium +5), with no new Critical finding.
+- The pipeline recorded and scanned the injected dependency. Grype attached 12 findings to urllib3 (8 High, 4 Medium). Total findings rose by 15 (High +10, Medium +5), with no new Critical finding. The 3 extra findings (2 High, 1 Medium) are not explained; a vulnerability database update between the two runs is possible but was not checked.
 - The signature stayed valid. It proves who built the image, not that its contents are safe.
-- The gate allowed the image, because it blocks only on the Critical label and High findings are warn-only. A vulnerable dependency that added 10 High findings passed.
+- The gate allowed the image, because it blocks only on the Critical label and High findings are warn-only. A dependency with 8 High findings of its own passed.
 - Inside the pipeline, the gate checks the signature against the identity of the same run that signed the image, so an image built on any branch passes. M3's own test showed the stricter check: the same image checked against the main identity was DENIED for a signature identity mismatch.
 
 What it suggests (not tested):
 - Compare each build with the clean baseline and block newly added High findings. A plain block on High would not work, because the clean image already has 60 High findings from the base image.
 - Enforce the main identity at deployment time, not only inside the build.
 
-Note: M4 restored the safe version after the test (to confirm with M4).
+Note: M4 restored the safe version after the test (to confirm with M4). The test version suggested as safe, 1.26.4, would clear only some of the urllib3 findings, because at least four of them need 1.26.5 or later.
 
 ## 8. Findings and fixes
 
