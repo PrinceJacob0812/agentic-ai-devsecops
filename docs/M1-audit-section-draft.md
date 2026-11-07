@@ -54,7 +54,7 @@ What it suggests (not tested):
 - Compare each build with the clean baseline and block newly added High findings. A plain block on High would not work, because the clean image already has 60 High findings from the base image.
 - Enforce the main identity at deployment time, not only inside the build.
 
-Note: M4 restored the safe version after the test (to confirm with M4). The test version suggested as safe, 1.26.4, would clear only some of the urllib3 findings, because at least four of them need 1.26.5 or later.
+Note: the red team branch M4-redteam-urllib3-medium still exists and still contains urllib3==1.26.3 (one commit on top of main, 729dd77). It was never merged into main, and main contains no urllib3 line: app/requirements.txt on main was last changed on 2026-10-13. The test version suggested as safe, 1.26.4, would clear only some of the urllib3 findings, because at least four of them need 1.26.5 or later.
 
 ## 8. Findings and fixes
 
