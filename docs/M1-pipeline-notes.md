@@ -31,3 +31,10 @@ Owner: M1 (DevSecOps & CI/CD Engineer)
 - Done: SBOM validation, Grype scan, digest-based SBOM, SAST triage stage (verified).
 - Pending: signing job (waiting for M3's working signing file), Week 2 PR review, AGENT_REF switch (waiting for PR #2).
 - Handoff to M3 closed. M3 recommends that the dependency update bot uses grype-json-<sha> (reasoned, not verified in the bot's code). The OPA gate runs in build-sbom after the signed SBOM upload and printed ALLOWED on main. OPA stays pinned to 1.8.0 (the five policy tests also pass on M3's 1.22.0).
+
+## Final notes (Nov 7)
+- Red team (run #92, urllib3 1.26.3): findings rose from 193 to 208 (High 60 to 70, Medium 73 to 78, no Critical). The SBOM showed urllib3@1.26.3 as the only added package, and the gate printed ALLOWED, because it blocks only on the Critical label.
+- The red team branch M4-redteam-urllib3-medium still contains urllib3==1.26.3. It was never merged. M4 will delete it after the audit is merged.
+- The vulnerable image from run #92 (digest sha256:d4a88391...) was pushed to the private registry. Whether it was deleted afterwards was not verified.
+- OPA is pinned to 1.8.0 in build-sbom. The five policy tests also pass on M3's 1.22.0, so the pin stays until a reviewed change moves it.
+- PR #27 (audit section) was waiting for M4's re-review after three documentation fixes.
