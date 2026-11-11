@@ -54,7 +54,7 @@ What it suggests (not tested):
 - Compare each build with the clean baseline and block newly added High findings. A plain block on High would not work, because the clean image already has 60 High findings from the base image.
 - Enforce the main identity at deployment time, not only inside the build.
 
-Note: the red team branch M4-redteam-urllib3-medium still exists and still contains urllib3==1.26.3 (one commit on top of main, 729dd77). It was never merged into main, and main contains no urllib3 line: app/requirements.txt on main was last changed on 2026-10-13. The test version suggested as safe, 1.26.4, would clear only some of the urllib3 findings, because at least four of them need 1.26.5 or later.
+Note: the red team branch M4-redteam-urllib3-medium contained urllib3==1.26.3 (one commit on top of main, 729dd77). It was never merged into main, and main contains no urllib3 line: app/requirements.txt on main was last changed on 2026-10-13. The branch was deleted after the audit section was merged (checked on 2026-11-10). The test version suggested as safe, 1.26.4, would clear only some of the urllib3 findings, because at least four of them need 1.26.5 or later.
 
 ## 8. Findings and fixes
 
@@ -82,3 +82,4 @@ Eight findings came out of building and running the pipeline.
 - Measurement. The caching result comes from one pair of runs.
 - Gate input. gate.sh trusts the Grype JSON file it is given. Nothing ties that file to the image digest, so a report from a clean image could be passed with a vulnerable one.
 - Gate independence. The gate runs in the same job that built and signed the image, so it is not an independent check at deploy time.
+- Red team image. A vulnerable image from the red team run (digest sha256:d4a88391730d0b275ba9614200091bb5bfbd5b904d1ceea0c99b54017ae2377c, run #92) was pushed to the private registry. The image was still listed in the GHCR package versions when checked on 2026-11-10. Prince subsequently confirmed that the red-team image was deleted.
