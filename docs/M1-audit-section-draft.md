@@ -82,4 +82,4 @@ Eight findings came out of building and running the pipeline.
 - Measurement. The caching result comes from one pair of runs.
 - Gate input. gate.sh trusts the Grype JSON file it is given. Nothing ties that file to the image digest, so a report from a clean image could be passed with a vulnerable one.
 - Gate independence. The gate runs in the same job that built and signed the image, so it is not an independent check at deploy time.
-- Red team image. A vulnerable image from the red team run (digest sha256:d4a88391730d0b275ba9614200091bb5bfbd5b904d1ceea0c99b54017ae2377c, run #92) was pushed to the private registry. Whether it was deleted afterwards was not verified.
+- Red team image. A vulnerable image from the red team run (digest sha256:d4a88391730d0b275ba9614200091bb5bfbd5b904d1ceea0c99b54017ae2377c, run #92) was pushed to the private registry. The image was still listed in the GHCR package versions when checked on 2026-11-10. Prince subsequently confirmed that the red-team image was deleted.
