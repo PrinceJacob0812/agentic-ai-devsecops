@@ -7,7 +7,7 @@ from typing import Any
 PROJECT = "agentic-ai-devsecops"
 
 ALLOWED_SEVERITIES = {
-    "CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "NEGLIGIBLE"
+    "CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "NEGLIGIBLE", "UNKNOWN"
 }
 
 REQUIRED_FIELDS = {
