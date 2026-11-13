@@ -58,7 +58,7 @@ def test_invalid_severity_rejected():
             event_type="finding",
             message="Test",
             status="OPEN",
-            severity="UNKNOWN",
+            severity="INVALID",
         )
 
 
@@ -83,6 +83,19 @@ def test_write_event_creates_jsonl(tmp_path):
         status="OPEN",
         severity="HIGH",
     )
+
+def test_unknown_severity_is_supported():
+    event = create_event(
+        stage="dependency-scan",
+        tool="grype",
+        event_type="finding",
+        message="Unknown severity finding",
+        status="OPEN",
+        severity="UNKNOWN",
+    )
+
+    assert event["severity"] == "UNKNOWN"
+
 
     output = tmp_path / "events.jsonl"
     write_event(event, str(output))
