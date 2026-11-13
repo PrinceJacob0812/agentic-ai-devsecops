@@ -36,3 +36,4 @@ ci-artifacts-main/
 
 # Generated AI triage results
 /results/
+logs/ai-triage-events.jsonl
