@@ -1,0 +1,105 @@
+
+{
+  "findings": [
+    {
+      "id": "ROB-001",
+      "rule_id": "python.lang.security.audit.exec-detected",
+      "severity": "HIGH",
+      "file": "ambiguous.py",
+      "line": 10,
+      "message": "Potential unsafe use of exec().",
+      "code": "exec(expression)",
+      "expected_label": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "id": "ROB-002",
+      "rule_id": "python.lang.security.audit.sql-injection",
+      "severity": "HIGH",
+      "file": "database.py",
+      "line": 20,
+      "message": "Possible SQL injection from user input.",
+      "code": "cursor.execute('SELECT * FROM users WHERE id = ' + request.args.get('id'))",
+      "expected_label": "TRUE_POSITIVE"
+    },
+    {
+      "id": "ROB-003",
+      "rule_id": "python.lang.security.audit.sql-injection",
+      "severity": "MEDIUM",
+      "file": "database.py",
+      "line": 30,
+      "message": "Potential SQL injection.",
+      "code": "cursor.execute('SELECT * FROM users WHERE id = %s', (user_id,))",
+      "expected_label": "FALSE_POSITIVE"
+    },
+    {
+      "id": "ROB-004",
+      "rule_id": "python.lang.security.audit.subprocess-shell-true",
+      "severity": "HIGH",
+      "file": "runner.py",
+      "line": 15,
+      "message": "Potential command injection.",
+      "code": "subprocess.run(['git', 'status'], shell=False, check=True)",
+      "expected_label": "FALSE_POSITIVE"
+    },
+    {
+      "id": "ROB-005",
+      "rule_id": "python.lang.security.audit.insecure-deserialization",
+      "severity": "HIGH",
+      "file": "loader.py",
+      "line": 42,
+      "message": "Untrusted data is deserialized using pickle.",
+      "code": "obj = pickle.loads(uploaded_file.read())",
+      "expected_label": "TRUE_POSITIVE"
+    },
+    {
+      "id": "ROB-006",
+      "rule_id": "python.lang.security.audit.insecure-transport",
+      "severity": "MEDIUM",
+      "file": "client.py",
+      "line": 22,
+      "message": "TLS certificate validation is disabled.",
+      "code": "requests.get(url, verify=False)",
+      "expected_label": "TRUE_POSITIVE"
+    },
+    {
+      "id": "ROB-007",
+      "rule_id": "python.lang.security.audit.hardcoded-password",
+      "severity": "MEDIUM",
+      "file": "settings.py",
+      "line": 8,
+      "message": "Possible hardcoded password.",
+      "code": "password = os.environ.get('APP_PASSWORD')",
+      "expected_label": "FALSE_POSITIVE"
+    },
+    {
+      "id": "ROB-008",
+      "rule_id": "python.lang.security.audit.eval-detected",
+      "severity": "HIGH",
+      "file": "calculator.py",
+      "line": 18,
+      "message": "Potential unsafe evaluation of untrusted input.",
+      "code": "result = eval(request.args.get('expression'))",
+      "expected_label": "TRUE_POSITIVE"
+    },
+    {
+      "id": "ROB-009",
+      "rule_id": "python.lang.security.audit.path-traversal",
+      "severity": "HIGH",
+      "file": "files.py",
+      "line": 35,
+      "message": "User-controlled path may access files outside the intended directory.",
+      "code": "return open('/srv/files/' + request.args.get('name')).read()",
+      "expected_label": "TRUE_POSITIVE"
+    },
+    {
+      "id": "ROB-010",
+      "rule_id": "python.lang.security.audit.unknown",
+      "severity": "INFO",
+      "file": "unknown.py",
+      "line": 1,
+      "message": "Potential security issue; insufficient details.",
+      "code": "process_data(value)",
+      "expected_label": "INSUFFICIENT_EVIDENCE"
+    }
+  ]
+}

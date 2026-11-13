@@ -1,15 +1,18 @@
+
 {
   "findings": [
-    {
-      "id": "TEST-001",
-      "rule_id": "python.lang.security.audit.exec-detected",
-      "severity": "HIGH",
-      "file": "app.py",
-      "line": 24,
-      "message": "Use of exec() may allow arbitrary code execution.",
-      "code": "exec(user_input)",
-      "expected_label": "TRUE_POSITIVE"
-    },
+
+{
+  "id": "TEST-001",
+  "rule_id": "python.lang.security.audit.exec-detected",
+  "severity": "HIGH",
+  "file": "app.py",
+  "line": 24,
+  "message": "Untrusted HTTP request input is passed directly to exec(), potentially allowing arbitrary code execution.",
+  "code": "user_input = request.args.get('cmd', '')\nexec(user_input)",
+  "expected_label": "TRUE_POSITIVE"
+}
+,
     {
       "id": "TEST-002",
       "rule_id": "python.lang.security.audit.hardcoded-password",
@@ -18,6 +21,86 @@
       "line": 10,
       "message": "Possible hardcoded password.",
       "code": "password = os.environ.get('APP_PASSWORD')",
+      "expected_label": "FALSE_POSITIVE"
+    },
+    {
+      "id": "TEST-003",
+      "rule_id": "python.lang.security.audit.subprocess-shell-true",
+      "severity": "HIGH",
+      "file": "runner.py",
+      "line": 31,
+      "message": "User-controlled input passed to a shell command.",
+      "code": "subprocess.run('ping ' + hostname, shell=True)",
+      "expected_label": "TRUE_POSITIVE"
+    },
+    {
+      "id": "TEST-004",
+      "rule_id": "python.lang.security.audit.sql-injection",
+      "severity": "HIGH",
+      "file": "database.py",
+      "line": 42,
+      "message": "SQL query built using string concatenation.",
+      "code": "cursor.execute('SELECT * FROM users WHERE name = ' + username)",
+      "expected_label": "TRUE_POSITIVE"
+    },
+    {
+      "id": "TEST-005",
+      "rule_id": "python.lang.security.audit.sql-injection",
+      "severity": "LOW",
+      "file": "database.py",
+      "line": 55,
+      "message": "Potential SQL injection in query construction.",
+      "code": "cursor.execute('SELECT * FROM users WHERE name = %s', (username,))",
+      "expected_label": "FALSE_POSITIVE"
+    },
+    {
+      "id": "TEST-006",
+      "rule_id": "python.lang.security.audit.insecure-deserialization",
+      "severity": "HIGH",
+      "file": "loader.py",
+      "line": 18,
+      "message": "Deserializing untrusted data may allow code execution.",
+      "code": "obj = pickle.loads(request.data)",
+      "expected_label": "TRUE_POSITIVE"
+    },
+    {
+      "id": "TEST-007",
+      "rule_id": "python.lang.security.audit.eval-detected",
+      "severity": "HIGH",
+      "file": "calculator.py",
+      "line": 27,
+      "message": "Use of eval() with user-controlled input.",
+      "code": "result = eval(request.args.get('expression'))",
+      "expected_label": "TRUE_POSITIVE"
+    },
+    {
+      "id": "TEST-008",
+      "rule_id": "python.lang.security.audit.subprocess-shell-true",
+      "severity": "LOW",
+      "file": "maintenance.py",
+      "line": 14,
+      "message": "Shell execution detected.",
+      "code": "subprocess.run(['ls', '-l'], shell=False, check=True)",
+      "expected_label": "FALSE_POSITIVE"
+    },
+    {
+      "id": "TEST-009",
+      "rule_id": "python.lang.security.audit.insecure-transport",
+      "severity": "HIGH",
+      "file": "client.py",
+      "line": 38,
+      "message": "TLS certificate verification is disabled.",
+      "code": "requests.get(api_url, verify=False)",
+      "expected_label": "TRUE_POSITIVE"
+    },
+    {
+      "id": "TEST-010",
+      "rule_id": "python.lang.security.audit.command-injection",
+      "severity": "LOW",
+      "file": "system_info.py",
+      "line": 12,
+      "message": "Potential command injection from shell execution.",
+      "code": "subprocess.run(['whoami'], shell=False, check=True)",
       "expected_label": "FALSE_POSITIVE"
     }
   ]
