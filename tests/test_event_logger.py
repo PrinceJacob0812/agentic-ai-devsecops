@@ -83,6 +83,11 @@ def test_write_event_creates_jsonl(tmp_path):
         status="OPEN",
         severity="HIGH",
     )
+        output = tmp_path / "events.jsonl"
+    write_event(event, str(output))
+
+    saved = json.loads(output.read_text(encoding="utf-8"))
+    assert saved["message"] == "Test finding"
 
 def test_unknown_severity_is_supported():
     event = create_event(
@@ -97,8 +102,4 @@ def test_unknown_severity_is_supported():
     assert event["severity"] == "UNKNOWN"
 
 
-    output = tmp_path / "events.jsonl"
-    write_event(event, str(output))
-
-    saved = json.loads(output.read_text(encoding="utf-8"))
-    assert saved["message"] == "Test finding"
+    
