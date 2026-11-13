@@ -12,11 +12,12 @@ Use one JSON object per event (JSON Lines / JSONL) so events can be appended and
 | stage | string | Pipeline stage, e.g. `sast`, `dependency-scan`, `sbom`, `signature` |
 | tool | string | Tool that emitted the event, e.g. `semgrep` |
 | event_type | string | e.g. `finding`, `scan_summary`, `verification` |
-| severity | string or null | `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, `INFO`, or null |
+| severity | string or null | `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, `INFO`, `NEGLIGIBLE`, `UNKNOWN`, or null |
 | rule_id | string or null | Tool rule identifier |
 | file | string or null | Repository-relative file path |
 | message | string | Short finding or event description |
 | status | string | e.g. `OPEN`, `REVIEWED`, `RESOLVED`, `PASSED`, `FAILED` |
+| count | non-negative integer (optional) | Number of findings or packages in a summary |
 
 ## Example
 
