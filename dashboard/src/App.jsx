@@ -139,7 +139,7 @@ function Overview({ events, triageEvents, severityData, totalFindings, search, o
             ["SBOM Validation", sbomEvent?.detail || "No Syft event found", sbomEvent?.status === "PASSED" ? CheckCircle : Clock],
             ["Cosign Signature", signatureEvent?.status || "No event found", signatureEvent?.status === "PASSED" ? CheckCircle : Clock],
             ["OPA Deployment Gate", gateEvent?.status || "No event found", gateEvent?.status === "PASSED" ? CheckCircle : Clock],
-            ["AI Security Triage", triageEvents.length ? `${triageEvents.length} AI triage findings loaded` : "No AI triage results loaded", triageEvents.length ? CheckCircle : Clock],
+            ["AI Security Triage", triageEvents.length ? `${triageEvents.length} AI triage findings loaded` : "No AI triage event loaded", triageEvents.length ? CheckCircle : Clock],
           ].map(([name, status, Icon]) => (
             <div className="control-row" key={name}>
               <Icon size={19} color={status.toLowerCase().includes("pending") || status.toLowerCase().includes("no event") ? "#f59e0b" : "#22c55e"} />
