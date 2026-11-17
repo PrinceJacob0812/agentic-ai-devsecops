@@ -11,6 +11,7 @@ import {
 import "./App.css";
 
 const EVENT_FILE = "/data/events.jsonl";
+const TRIAGE_EVENT_FILE = "/data/ai-triage-events.jsonl";
 
 const SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "NEGLIGIBLE", "UNKNOWN"];
 
@@ -37,6 +38,13 @@ function normalizeEvent(raw, index) {
     severity: raw.severity ? String(raw.severity).toUpperCase() : null,
     count: Number.isFinite(Number(raw.count)) ? Number(raw.count) : null,
   };
+}
+
+function parseJsonl(text, fileName) {
+  return text.split(/\\r?\\n/).filter(line => line.trim()).map((line, index) => {
+    try { return normalizeEvent(JSON.parse(line), index); }
+    catch { throw new Error(`Invalid JSON on line ${index + 1} of ${fileName}`); }
+  });
 }
 
 function MetricCard({ icon: Icon, label, value, note, color }) {
@@ -213,17 +221,52 @@ function SBOMPage({ events }) {
   );
 }
 
-function AITriagePage() {
+function AITriagePage({ triageEvents, loading, error, onRefresh }) {
+  const reviewed = triageEvents.filter(event => event.status === "REVIEWED").length;
+  const open = triageEvents.filter(event => event.status === "OPEN").length;
+
   return (
-    <section className="panel">
-      <PanelHeading title="AI Security Triage" subtitle="AI-assisted vulnerability analysis" tag="Groq AI" />
-      <div className="control-row"><Clock size={22} color="#f59e0b" /><div><strong>AI Integration</strong><small>Dashboard integration pending</small></div></div>
-      {[
-        ["Finding Analysis", "Analyze security findings"],
-        ["Risk Explanation", "Explain vulnerability impact"],
-        ["Remediation Suggestions", "Suggest possible fixes"],
-      ].map(([name, detail]) => <div className="control-row" key={name}><CheckCircle size={18} color="#22c55e" /><div><strong>{name}</strong><small>{detail}</small></div></div>)}
-    </section>
+    <>
+      <section className="metrics-grid">
+        <MetricCard icon={Activity} label="Analyzed Findings" value={triageEvents.length} note="AI triage events loaded" color="blue" />
+        <MetricCard icon={AlertTriangle} label="Open Findings" value={open} note="Classified as true positives" color="orange" />
+        <MetricCard icon={CheckCircle} label="Needs Review" value={reviewed} note="False positives or insufficient evidence" color="green" />
+      </section>
+      <section className="panel">
+        <div className="panel-heading">
+          <div><h3>AI Security Triage</h3><p>Finding analysis, risk explanation, evidence and remediation from the AI triage output</p></div>
+          <button className="refresh-button" onClick={onRefresh} disabled={loading}>
+            <RefreshCw size={16} className={loading ? "spin" : ""} /> {loading ? "Loading..." : "Refresh"}
+          </button>
+        </div>
+        {error && <p role="alert">{error}</p>}
+        {!error && loading && <p>Loading AI triage results...</p>}
+        {!loading && !error && triageEvents.length === 0 && (
+          <div className="empty-state">
+            <Clock size={24} color="#f59e0b" />
+            <h3>No AI triage results loaded yet</h3>
+            <p>Run the AI triage workflow and place its generated <code>ai-triage-events.jsonl</code> file in <code>dashboard/public/data/</code>. Refresh this page to display the results.</p>
+          </div>
+        )}
+        {triageEvents.map(event => (
+          <article className="triage-card" key={event.id}>
+            <div className="triage-card-header">
+              <div><strong>{event.finding_id || event.rule_id || "Security finding"}</strong><small>{event.file || "File not provided"} · {event.rule_id || "No rule ID"}</small></div>
+              <span className={event.status === "OPEN" ? "status-pill status-open" : "status-pill"}>{event.status || "UNKNOWN"}</span>
+            </div>
+            <div className="triage-meta">
+              <span>Risk: <strong>{event.severity || "UNKNOWN"}</strong></span>
+              <span>Classification: <strong>{(event.classification || "NOT CLASSIFIED").replaceAll("_", " ")}</strong></span>
+              <span>Confidence: <strong>{Number.isFinite(Number(event.confidence)) ? event.confidence + "%" : "—"}</strong></span>
+            </div>
+            <p><strong>Explanation:</strong> {event.detail}</p>
+            {Array.isArray(event.evidence) && event.evidence.length > 0 && <div><strong>Evidence</strong><ul>{event.evidence.map((item, index) => <li key={index}>{item}</li>)}</ul></div>}
+            {event.remediation && <p><strong>Remediation:</strong> {event.remediation}</p>}
+            {event.triage_error && <p className="triage-warning"><strong>Analysis note:</strong> {event.triage_error}</p>}
+          </article>
+        ))}
+      </section>
+    </>
   );
 }
 
@@ -244,6 +287,9 @@ function App() {
   const [activeTab, setActiveTab] = useState("Overview");
   const [search, setSearch] = useState("");
   const [events, setEvents] = useState([]);
+  const [triageEvents, setTriageEvents] = useState([]);
+  const [triageLoading, setTriageLoading] = useState(true);
+  const [triageError, setTriageError] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -269,7 +315,26 @@ function App() {
     }
   }, []);
 
-  useEffect(() => { loadEvents(); }, [loadEvents]);
+  const loadTriageEvents = useCallback(async () => {
+    setTriageLoading(true);
+    setTriageError("");
+    try {
+      const response = await fetch(`${TRIAGE_EVENT_FILE}?_=${Date.now()}`, { cache: "no-store" });
+      if (response.status === 404) {
+        setTriageEvents([]);
+        return;
+      }
+      if (!response.ok) throw new Error(`Could not load AI triage data (HTTP ${response.status})`);
+      setTriageEvents(parseJsonl(await response.text(), "ai-triage-events.jsonl"));
+    } catch (err) {
+      setTriageError(err.message || "Unable to load AI triage results.");
+      setTriageEvents([]);
+    } finally {
+      setTriageLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadEvents(); loadTriageEvents(); }, [loadEvents, loadTriageEvents]);
 
   const severityData = useMemo(() => {
     const counts = Object.fromEntries(SEVERITIES.map(severity => [severity, 0]));
@@ -301,7 +366,7 @@ function App() {
       case "Pipeline": return <PipelinePage events={events} />;
       case "Vulnerabilities": return <VulnerabilitiesPage severityData={severityData} totalFindings={totalFindings} />;
       case "SBOM Explorer": return <SBOMPage events={events} />;
-      case "AI Triage": return <AITriagePage />;
+      case "AI Triage": return <AITriagePage triageEvents={triageEvents} loading={triageLoading} error={triageError} onRefresh={loadTriageEvents} />;
       case "Settings": return <SettingsPage />;
       default: return <h2>Page not found</h2>;
     }
