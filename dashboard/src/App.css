@@ -512,3 +512,64 @@ footer {
     flex-direction: column;
   }
 }
+
+
+/* AI triage results */
+.empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 42px 20px;
+  text-align: center;
+  color: #cbd5e1;
+}
+.empty-state h3 { font-size: 16px; }
+.empty-state p { max-width: 620px; }
+.empty-state code {
+  color: #7dd3fc;
+  background: #0f1b2d;
+  border-radius: 4px;
+  padding: 2px 5px;
+}
+.triage-card {
+  margin-top: 16px;
+  padding: 18px;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  background: #111d30;
+  display: grid;
+  gap: 12px;
+}
+.triage-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+.triage-card-header strong, .triage-card-header small { display: block; }
+.triage-card-header small {
+  color: #94a3b8;
+  font-size: 11px;
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+}
+.triage-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  color: #94a3b8;
+  font-size: 12px;
+}
+.triage-meta strong { color: #e2e8f0; }
+.triage-card p, .triage-card li {
+  color: #cbd5e1;
+  font-size: 13px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.triage-card ul { padding-left: 20px; }
+.triage-warning { color: #fbbf24 !important; }
+.status-open { background: #4a2a1b; color: #fdba74; }
+@media (max-width: 700px) {
+  .triage-card-header { flex-direction: column; }
+}
