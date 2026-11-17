@@ -103,7 +103,7 @@ function EventTable({ data }) {
   );
 }
 
-function Overview({ events, severityData, totalFindings, search, onRefresh, loading }) {
+function Overview({ events, triageEvents, severityData, totalFindings, search, onRefresh, loading }) {
   const filteredEvents = events.filter(event =>
     `${event.stage} ${event.tool} ${event.status} ${event.detail}`.toLowerCase().includes(search.toLowerCase())
   );
@@ -139,7 +139,7 @@ function Overview({ events, severityData, totalFindings, search, onRefresh, load
             ["SBOM Validation", sbomEvent?.detail || "No Syft event found", sbomEvent?.status === "PASSED" ? CheckCircle : Clock],
             ["Cosign Signature", signatureEvent?.status || "No event found", signatureEvent?.status === "PASSED" ? CheckCircle : Clock],
             ["OPA Deployment Gate", gateEvent?.status || "No event found", gateEvent?.status === "PASSED" ? CheckCircle : Clock],
-            ["AI Security Triage", "Dashboard integration pending", Clock],
+            ["AI Security Triage", triageEvents.length ? `${triageEvents.length} AI triage findings loaded` : "No AI triage results loaded", triageEvents.length ? CheckCircle : Clock],
           ].map(([name, status, Icon]) => (
             <div className="control-row" key={name}>
               <Icon size={19} color={status.toLowerCase().includes("pending") || status.toLowerCase().includes("no event") ? "#f59e0b" : "#22c55e"} />
@@ -362,7 +362,7 @@ function App() {
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case "Overview": return <Overview events={events} severityData={severityData} totalFindings={totalFindings} search={search} onRefresh={loadEvents} loading={loading} />;
+      case "Overview": return <Overview events={events} triageEvents={triageEvents} severityData={severityData} totalFindings={totalFindings} search={search} onRefresh={loadEvents} loading={loading} />;
       case "Pipeline": return <PipelinePage events={events} />;
       case "Vulnerabilities": return <VulnerabilitiesPage severityData={severityData} totalFindings={totalFindings} />;
       case "SBOM Explorer": return <SBOMPage events={events} />;
