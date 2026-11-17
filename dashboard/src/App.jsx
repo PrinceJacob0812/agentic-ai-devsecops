@@ -41,7 +41,7 @@ function normalizeEvent(raw, index) {
 }
 
 function parseJsonl(text, fileName) {
-  return text.split(/\\r?\\n/).filter(line => line.trim()).map((line, index) => {
+  return text.split(/\r?\n/).filter(line => line.trim()).map((line, index) => {
     try { return normalizeEvent(JSON.parse(line), index); }
     catch { throw new Error(`Invalid JSON on line ${index + 1} of ${fileName}`); }
   });
