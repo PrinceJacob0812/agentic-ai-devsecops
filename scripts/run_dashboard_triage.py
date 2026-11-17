@@ -1,6 +1,10 @@
 """Generate AI triage JSONL data for the SecureFlow dashboard."""
 import argparse
+import sys
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
 from src.agent import error_result, triage_finding
 from src.triage_events import export_triage_events, load_findings
