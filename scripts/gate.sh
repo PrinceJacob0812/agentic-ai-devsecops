@@ -3,7 +3,7 @@ set -euo pipefail
 
 : "${IMAGE_REF:?Set IMAGE_REF to an image reference pinned by SHA-256 digest}"
 : "${IDENTITY:?Set IDENTITY to the expected signing certificate identity}"
-: "${GRYPE_JSON:?Set GRYPE_JSON to the Grype JSON report path}"
+: "${GRYPE_JSON:?Set GRYPE_JSON to the Grype JSON report generated from the verified SBOM attestation}"
 
 ISSUER="${ISSUER:-https://token.actions.githubusercontent.com}"
 POLICY_FILE="policies/deployment.rego"
@@ -55,40 +55,33 @@ if [[ ! -s "$TMP_DIR/attestation.json" ]]; then
 fi
 
 echo "[3/4] Checking Grype vulnerability report..."
-
-CRITICAL_COUNT="$(jq \
-    '[.matches[]? | select(.vulnerability.severity == "Critical")] | length' \
-    "$GRYPE_JSON")"
-
-HIGH_COUNT="$(jq \
-    '[.matches[]? | select(.vulnerability.severity == "High")] | length' \
-    "$GRYPE_JSON")"
+CRITICAL_COUNT="$(jq '[.matches[]? | select(.vulnerability.severity == "Critical")] | length' "$GRYPE_JSON")"
+HIGH_COUNT="$(jq '[.matches[]? | select(.vulnerability.severity == "High")] | length' "$GRYPE_JSON")"
 
 echo "Critical vulnerabilities found: $CRITICAL_COUNT"
-echo "High vulnerabilities found: $HIGH_COUNT (warn-only)"
+echo "High vulnerabilities found: $HIGH_COUNT (warn-only; see issue #29 for agreed blocking target)"
 
 jq -n \
     --arg image_ref "$IMAGE_REF" \
     --argjson critical_count "$CRITICAL_COUNT" \
-    '{
-        image_ref: $image_ref,
-        signature_verified: true,
-        sbom_attestation_verified: true,
-        critical_count: $critical_count
-    }' > "$TMP_DIR/input.json"
+    '{image_ref: $image_ref, signature_verified: true, sbom_attestation_verified: true, critical_count: $critical_count}' \
+    > "$TMP_DIR/input.json"
 
 echo "[4/4] Evaluating OPA deployment policy..."
-
-if ! OPA_RESULT="$(opa eval --format raw \
+if ! opa eval --format json \
     --data "$POLICY_FILE" \
     --input "$TMP_DIR/input.json" \
-    'data.deployment.allow')"; then
+    'data.deployment.allow' > "$TMP_DIR/allow.json"; then
     echo "DENIED: OPA policy evaluation failed." >&2
     exit 1
 fi
 
-if [[ "$OPA_RESULT" != "true" ]]; then
-    echo "DENIED: Deployment policy rejected the image." >&2
+OPA_ALLOWED="$(jq -r '.result[0].expressions[0].value // false' "$TMP_DIR/allow.json")"
+if [[ "$OPA_ALLOWED" != "true" ]]; then
+    echo "DENIED: Deployment policy rejected the image. Reason(s):" >&2
+    if opa eval --format json --data "$POLICY_FILE" --input "$TMP_DIR/input.json" 'data.deployment.deny' > "$TMP_DIR/deny.json"; then
+        jq -r '.result[0].expressions[0].value[]? // empty' "$TMP_DIR/deny.json" | sed 's/^/  - /' >&2
+    fi
     exit 1
 fi
 

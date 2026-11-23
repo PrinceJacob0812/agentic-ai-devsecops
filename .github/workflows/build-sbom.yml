@@ -75,6 +75,20 @@ jobs:
         with:
           name: grype-report-${{ github.sha }}
           path: ${{ steps.grype.outputs.sarif }}
+      - name: Extract SBOM from verified signed attestation
+        run: |
+          set -euo pipefail
+          jq -er '.[0].payload | @base64d | fromjson | .predicate' signed-sbom-attestation.json > verified-sbom.cdx.json
+          jq -e '.bomFormat == "CycloneDX" and (.components | type == "array") and (.components | length > 0)' verified-sbom.cdx.json
+
+      - name: Scan verified attested SBOM for the gate report
+        id: grype_verified
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+        with:
+          sbom: verified-sbom.cdx.json
+          fail-build: false
+          output-format: json
+
       - name: Scan SBOM again for the JSON report (severity labels)
         id: grype_json
         uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
@@ -132,7 +146,7 @@ jobs:
         env:
           IMAGE_REF: ${{ steps.meta.outputs.image }}@${{ steps.build.outputs.digest }}
           IDENTITY: https://github.com/${{ github.repository }}/.github/workflows/build-sbom.yml@${{ github.ref }}
-          GRYPE_JSON: ${{ steps.grype_json.outputs.json }}
+          GRYPE_JSON: ${{ steps.grype_verified.outputs.json }}
         run: bash scripts/gate.sh
       - name: Write security events (JSON Lines)
         if: ${{ !cancelled() }}
