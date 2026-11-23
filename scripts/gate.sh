@@ -59,12 +59,14 @@ CRITICAL_COUNT="$(jq '[.matches[]? | select(.vulnerability.severity == "Critical
 HIGH_COUNT="$(jq '[.matches[]? | select(.vulnerability.severity == "High")] | length' "$GRYPE_JSON")"
 
 echo "Critical vulnerabilities found: $CRITICAL_COUNT"
-echo "High vulnerabilities found: $HIGH_COUNT (warn-only; see issue #29 for agreed blocking target)"
+echo "High vulnerabilities found: $HIGH_COUNT (new findings above approved baseline are blocked; baseline: ${HIGH_FINDINGS_BASELINE:-86})"
 
 jq -n \
     --arg image_ref "$IMAGE_REF" \
     --argjson critical_count "$CRITICAL_COUNT" \
-    '{image_ref: $image_ref, signature_verified: true, sbom_attestation_verified: true, critical_count: $critical_count}' \
+    --argjson high_count "$HIGH_COUNT" \
+    --argjson high_baseline "${HIGH_FINDINGS_BASELINE:-86}" \
+    '{image_ref: $image_ref, signature_verified: true, sbom_attestation_verified: true, critical_count: $critical_count, high_count: $high_count, high_baseline: $high_baseline}' \
     > "$TMP_DIR/input.json"
 
 echo "[4/4] Evaluating OPA deployment policy..."

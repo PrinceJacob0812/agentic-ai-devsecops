@@ -150,4 +150,4 @@ The deployment gate is implemented in `scripts/gate.sh` and evaluates the signed
 
 A policy denial prints the specific OPA reason(s), such as an unverified signature, unverified SBOM attestation, Critical vulnerabilities, or a mutable/non-digest image reference.
 
-**Severity policy:** Critical findings block deployment. High findings remain warn-only at present; the blocking threshold is intentionally left for an explicit team decision because the current baseline contains a substantial number of High findings (tracked in issue #29).
+**Severity policy:** Critical findings block deployment. High findings are baseline-gated: the approved baseline is 86 High findings from the initial verified pipeline scan. Any increase above 86 blocks deployment; reducing the baseline as findings are remediated makes the gate progressively stricter. Update `HIGH_FINDINGS_BASELINE` only after reviewing and approving the new baseline.

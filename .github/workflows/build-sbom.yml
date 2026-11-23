@@ -148,6 +148,7 @@ jobs:
           IMAGE_REF: ${{ steps.meta.outputs.image }}@${{ steps.build.outputs.digest }}
           IDENTITY: https://github.com/${{ github.repository }}/.github/workflows/build-sbom.yml@${{ github.ref }}
           GRYPE_JSON: ${{ steps.grype_verified.outputs.json }}
+          HIGH_FINDINGS_BASELINE: "86"
         run: bash scripts/gate.sh
       - name: Write security events (JSON Lines)
         if: ${{ !cancelled() }}

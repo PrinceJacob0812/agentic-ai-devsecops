@@ -8,6 +8,7 @@ allow if {
     input.signature_verified == true
     input.sbom_attestation_verified == true
     input.critical_count == 0
+    input.high_count <= input.high_baseline
     regex.match(`@sha256:[a-f0-9]{64}$`, input.image_ref)
 }
 
@@ -25,4 +26,8 @@ deny contains "one or more Critical vulnerabilities were found" if {
 
 deny contains "image reference must be pinned by a SHA-256 digest" if {
     not regex.match(`@sha256:[a-f0-9]{64}$`, input.image_ref)
+}
+
+deny contains sprintf("High vulnerability count (%d) exceeds approved baseline (%d)", [input.high_count, input.high_baseline]) if {
+    input.high_count > input.high_baseline
 }
