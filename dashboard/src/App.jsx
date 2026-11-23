@@ -103,6 +103,7 @@ function Overview({ events, severityData, totalFindings, search, onRefresh, load
   const sbomEvent = events.find(event => event.tool.toLowerCase() === "syft");
   const signatureEvent = events.find(event => event.tool.toLowerCase() === "cosign");
   const gateEvent = events.find(event => event.tool.toLowerCase() === "opa");
+  const triageCount = events.filter(event => event.tool.toLowerCase() === "ai-triage").length;
   const pipelinePassed = gateEvent?.status?.toUpperCase() === "PASSED";
 
   return (
@@ -132,7 +133,7 @@ function Overview({ events, severityData, totalFindings, search, onRefresh, load
             ["SBOM Validation", sbomEvent?.detail || "No Syft event found", sbomEvent?.status === "PASSED" ? CheckCircle : Clock],
             ["Cosign Signature", signatureEvent?.status || "No event found", signatureEvent?.status === "PASSED" ? CheckCircle : Clock],
             ["OPA Deployment Gate", gateEvent?.status || "No event found", gateEvent?.status === "PASSED" ? CheckCircle : Clock],
-            ["AI Security Triage", "Dashboard integration pending", Clock],
+            ["AI Security Triage", triageCount ? `${triageCount} findings imported from M2` : "Waiting for the next M2 pipeline run", triageCount ? CheckCircle : Clock],
           ].map(([name, status, Icon]) => (
             <div className="control-row" key={name}>
               <Icon size={19} color={status.toLowerCase().includes("pending") || status.toLowerCase().includes("no event") ? "#f59e0b" : "#22c55e"} />
@@ -258,7 +259,7 @@ function SettingsPage() {
       {[
         ["Workspace", "Agentic AI DevSecOps", Settings],
         ["Security Platform", "CNAPP Security Workspace", ShieldCheck],
-        ["Monitoring", "Pipeline event monitoring from public/data/events.jsonl", Activity],
+        ["Monitoring", "Automatically synced JSONL pipeline artifacts", Activity],
       ].map(([name, detail, Icon]) => <div className="control-row" key={name}><Icon size={20} /><div><strong>{name}</strong><small>{detail}</small></div></div>)}
     </section>
   );
