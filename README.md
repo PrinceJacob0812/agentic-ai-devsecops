@@ -36,7 +36,7 @@ It integrates security tools and AI capabilities into the software development l
 ├── sast/                    # SAST reports and handoff documentation
 ├── logs/                    # Security event logs
 ├── docs/                    # Architecture and project documentation
-├── dashboard/               # Security dashboard
+├── dashboard/               # SecureFlow security dashboard
 ├── src/                     # AI triage and supporting modules
 ├── samples/                 # Sample security findings and datasets
 ├── tests/                   # Automated tests
@@ -119,8 +119,7 @@ Keep API keys and credentials private. Never commit the `.env` file.
 
 The project integrates CI/CD automation, SAST scanning, AI-assisted security triage, security-test generation, supply chain security controls, and centralized security monitoring.
 
-Individual components are developed and integrated by their respective team members. Final functionality and end-to-end integration are validated through automated tests and CI/CD workflows.
-
+Individual components are developed and integrated by their respective team members. Final functionality and end-to-end integration are validated through automated tests and CI/CD workflows. See the GitHub Actions runs for the latest validation evidence.
 
 ## Deployment Gate
 
@@ -141,13 +140,17 @@ The deployment gate is implemented in `scripts/gate.sh` and evaluates the signed
 2. Verify the CycloneDX SBOM attestation for the same digest-pinned image.
 3. Extract the SBOM predicate from the verified attestation and validate its CycloneDX structure.
 4. Generate the Grype JSON report from that extracted SBOM.
-5. Evaluate the OPA policy using the verified signature/attestation results and Critical finding count.
+5. Evaluate the OPA policy using the verified signature/attestation results, Critical finding count, and High finding count compared with the approved baseline.
 
 ### Exit codes
 
 - `0`: policy allows the image.
 - `1`: required input/tool is missing, verification or policy evaluation fails, the report is invalid, or the policy denies the image.
 
-A policy denial prints the specific OPA reason(s), such as an unverified signature, unverified SBOM attestation, Critical vulnerabilities, or a mutable/non-digest image reference.
+A policy denial prints the specific OPA reason(s), such as an unverified signature, unverified SBOM attestation, Critical vulnerabilities, High findings above baseline, or a mutable/non-digest image reference.
 
 **Severity policy:** Critical findings block deployment. High findings are baseline-gated: the approved baseline is 86 High findings from the initial verified pipeline scan. Any increase above 86 blocks deployment; reducing the baseline as findings are remediated makes the gate progressively stricter. Update `HIGH_FINDINGS_BASELINE` only after reviewing and approving the new baseline.
+
+## Dashboard
+
+The SecureFlow dashboard is in `dashboard/`. It provides Overview, Pipeline, Vulnerabilities, SBOM Explorer, AI Triage, and Settings views. It reads `dashboard/public/data/events.jsonl`; the Dashboard Event Sync workflow merges JSONL artifacts from successful pipeline and triage runs. See [dashboard/README.md](dashboard/README.md) for local setup, data behavior, and interpretation notes.
