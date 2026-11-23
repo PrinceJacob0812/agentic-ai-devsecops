@@ -118,7 +118,7 @@ jobs:
       - name: Extract SBOM from verified signed attestation
         run: |
           set -euo pipefail
-          jq -er '.[0].payload | @base64d | fromjson | .predicate' signed-sbom-attestation.json > verified-sbom.cdx.json
+          jq -er '(if type == "array" then .[0] else . end) | .payload | @base64d | fromjson | .predicate' signed-sbom-attestation.json > verified-sbom.cdx.json
           jq -e '.bomFormat == "CycloneDX" and (.components | type == "array") and (.components | length > 0)' verified-sbom.cdx.json
 
       - name: Scan verified attested SBOM for the gate report
