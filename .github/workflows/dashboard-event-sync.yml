@@ -34,7 +34,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           RUN_ID: ${{ github.event.workflow_run.id }}
-          WORKFLOW_NAME: ${{ github.event.workflow.name }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
         run: |
           python - <<'PY'
           import io
