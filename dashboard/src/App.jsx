@@ -22,6 +22,7 @@ function formatStage(stage = "") {
     gate: "Deployment Gate",
     sast: "Static Code Analysis",
     dast: "Dynamic Application Scan",
+    "sast-triage": "AI Security Triage",
   };
   return labels[stage] || stage.replaceAll("-", " ").replace(/\b\w/g, c => c.toUpperCase());
 }
@@ -102,6 +103,7 @@ function Overview({ events, severityData, totalFindings, search, onRefresh, load
   const sbomEvent = events.find(event => event.tool.toLowerCase() === "syft");
   const signatureEvent = events.find(event => event.tool.toLowerCase() === "cosign");
   const gateEvent = events.find(event => event.tool.toLowerCase() === "opa");
+  const triageCount = events.filter(event => event.tool.toLowerCase() === "ai-triage").length;
   const pipelinePassed = gateEvent?.status?.toUpperCase() === "PASSED";
 
   return (
@@ -131,7 +133,7 @@ function Overview({ events, severityData, totalFindings, search, onRefresh, load
             ["SBOM Validation", sbomEvent?.detail || "No Syft event found", sbomEvent?.status === "PASSED" ? CheckCircle : Clock],
             ["Cosign Signature", signatureEvent?.status || "No event found", signatureEvent?.status === "PASSED" ? CheckCircle : Clock],
             ["OPA Deployment Gate", gateEvent?.status || "No event found", gateEvent?.status === "PASSED" ? CheckCircle : Clock],
-            ["AI Security Triage", "Dashboard integration pending", Clock],
+            ["AI Security Triage", triageCount ? `${triageCount} findings imported from M2` : "Waiting for the next M2 pipeline run", triageCount ? CheckCircle : Clock],
           ].map(([name, status, Icon]) => (
             <div className="control-row" key={name}>
               <Icon size={19} color={status.toLowerCase().includes("pending") || status.toLowerCase().includes("no event") ? "#f59e0b" : "#22c55e"} />
@@ -151,7 +153,7 @@ function Overview({ events, severityData, totalFindings, search, onRefresh, load
 
 function PipelinePage({ events }) {
   const pipelineEvents = events.filter(event =>
-    ["syft", "grype", "cosign", "opa", "semgrep", "owasp zap"]
+    ["syft", "grype", "cosign", "opa", "semgrep", "owasp zap", "ai-triage"]
       .includes(event.tool.toLowerCase())
   );
 
@@ -213,16 +215,39 @@ function SBOMPage({ events }) {
   );
 }
 
-function AITriagePage() {
+function AITriagePage({ events }) {
+  const triageEvents = events.filter(event => event.tool.toLowerCase() === "ai-triage");
+  const riskOrder = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, INFO: 4 };
+  const sortedEvents = [...triageEvents].sort((a, b) =>
+    (riskOrder[a.severity] ?? 5) - (riskOrder[b.severity] ?? 5)
+  );
   return (
     <section className="panel">
       <PanelHeading title="AI Security Triage" subtitle="AI-assisted vulnerability analysis" tag="Groq AI" />
-      <div className="control-row"><Clock size={22} color="#f59e0b" /><div><strong>AI Integration</strong><small>Dashboard integration pending</small></div></div>
-      {[
-        ["Finding Analysis", "Analyze security findings"],
-        ["Risk Explanation", "Explain vulnerability impact"],
-        ["Remediation Suggestions", "Suggest possible fixes"],
-      ].map(([name, detail]) => <div className="control-row" key={name}><CheckCircle size={18} color="#22c55e" /><div><strong>{name}</strong><small>{detail}</small></div></div>)}
+      {triageEvents.length === 0 ? (
+        <div className="control-row"><Clock size={22} color="#f59e0b" /><div><strong>No AI triage events yet</strong><small>Events will appear after a successful M2 triage workflow run on main.</small></div></div>
+      ) : (
+        <>
+          <div className="metrics-grid">
+            <MetricCard icon={ShieldCheck} label="Triaged Findings" value={triageEvents.length} note="Imported from the M2 workflow artifact" color="blue" />
+            <MetricCard icon={AlertTriangle} label="True Positives" value={triageEvents.filter(event => event.classification === "TRUE_POSITIVE").length} note="Kept open for human review" color="orange" />
+            <MetricCard icon={CheckCircle} label="Reviewed" value={triageEvents.filter(event => event.status === "REVIEWED").length} note="AI classification; not auto-suppressed" color="green" />
+          </div>
+          {sortedEvents.map(event => (
+            <article className="control-row" key={event.id} style={{ alignItems: "flex-start" }}>
+              <AlertTriangle size={19} color={event.severity === "CRITICAL" || event.severity === "HIGH" ? "#fb923c" : "#38bdf8"} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <strong>{event.severity || "UNRATED"} · {event.classification || "UNCLASSIFIED"}</strong>
+                <small>{event.file || "File not supplied"} {event.rule_id ? `· ${event.rule_id}` : ""} {event.confidence != null ? `· Confidence ${event.confidence}%` : ""}</small>
+                <p style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>{event.detail}</p>
+                {event.evidence?.length > 0 && <small style={{ display: "block", marginTop: 8 }}>Evidence: {event.evidence.join(" · ")}</small>}
+                {event.remediation && <small style={{ display: "block", marginTop: 8 }}>Remediation: {event.remediation}</small>}
+                <small style={{ display: "block", marginTop: 8 }}>Status: {event.status} · Run: {event.pipeline_run_id || "unknown"}</small>
+              </div>
+            </article>
+          ))}
+        </>
+      )}
     </section>
   );
 }
@@ -234,7 +259,7 @@ function SettingsPage() {
       {[
         ["Workspace", "Agentic AI DevSecOps", Settings],
         ["Security Platform", "CNAPP Security Workspace", ShieldCheck],
-        ["Monitoring", "Pipeline event monitoring from public/data/events.jsonl", Activity],
+        ["Monitoring", "Automatically synced JSONL pipeline artifacts", Activity],
       ].map(([name, detail, Icon]) => <div className="control-row" key={name}><Icon size={20} /><div><strong>{name}</strong><small>{detail}</small></div></div>)}
     </section>
   );
@@ -301,7 +326,7 @@ function App() {
       case "Pipeline": return <PipelinePage events={events} />;
       case "Vulnerabilities": return <VulnerabilitiesPage severityData={severityData} totalFindings={totalFindings} />;
       case "SBOM Explorer": return <SBOMPage events={events} />;
-      case "AI Triage": return <AITriagePage />;
+      case "AI Triage": return <AITriagePage events={events} />;
       case "Settings": return <SettingsPage />;
       default: return <h2>Page not found</h2>;
     }
