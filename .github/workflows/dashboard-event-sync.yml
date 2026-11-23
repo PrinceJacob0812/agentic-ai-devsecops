@@ -41,6 +41,7 @@ jobs:
           import json
           import os
           import urllib.request
+          import urllib.error
           import zipfile
           from pathlib import Path
 
@@ -76,9 +77,27 @@ jobs:
               raise SystemExit("No matching JSONL artifact found for this run.")
           artifact = max(candidates, key=lambda item: item["created_at"])
           download_url = f"{api}/actions/artifacts/{artifact['id']}/zip"
+
+          # GitHub redirects artifact downloads to temporary object-storage URLs.
+          # Do not forward the GitHub Authorization header to that external host.
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, response_headers, new_url):
+                  return None
+
+          opener = urllib.request.build_opener(NoRedirect)
           request = urllib.request.Request(download_url, headers=headers)
-          with urllib.request.urlopen(request, timeout=60) as response:
-              archive_bytes = response.read()
+          try:
+              with opener.open(request, timeout=30) as response:
+                  archive_bytes = response.read()
+          except urllib.error.HTTPError as error:
+              if error.code not in (301, 302, 303, 307, 308):
+                  raise
+              location = error.headers.get("Location")
+              if not location:
+                  raise SystemExit("GitHub artifact download did not provide a redirect URL.")
+              # The redirect URL is short-lived and already authorized by GitHub.
+              with urllib.request.urlopen(location, timeout=60) as response:
+                  archive_bytes = response.read()
 
           with zipfile.ZipFile(io.BytesIO(archive_bytes)) as archive:
               matches = [name for name in archive.namelist()
